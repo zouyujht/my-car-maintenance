@@ -11,6 +11,16 @@ const maintenanceRules = [
     { name: '节流阀', type: 'mileage', value: 20000 },
 ];
 
+// Helper to parse YYYY-MM-DD to avoid timezone issues
+function parseDate(dateString) {
+    if (!dateString) return null;
+    // Handles both 'YYYY-MM-DD' and 'YYYY-MM-DDTHH:mm:ss...'
+    const datePart = dateString.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+    // Create date in local time zone at midnight
+    return new Date(year, month - 1, day);
+}
+
 export async function onRequestPost(context) {
     try {
         const { current_mileage } = await context.request.json();
@@ -21,13 +31,15 @@ export async function onRequestPost(context) {
         if (!carInfo) {
             return new Response(JSON.stringify({ error: "请先在“保养日志”页面填入并提交一次购车日期。" }), { status: 400 });
         }
-        const purchaseDate = new Date(carInfo.purchase_date);
+        const purchaseDate = parseDate(carInfo.purchase_date);
 
         // 2. 获取所有历史保养记录
         const { results: logs } = await db.prepare("SELECT * FROM maintenance_logs ORDER BY maintenance_date DESC").all();
 
         const suggestions = [];
         const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize to midnight for date-only comparison
+
         const debugInfo = {
             queryDate: today.toISOString().split('T')[0],
             timeBased: [],
@@ -39,35 +51,42 @@ export async function onRequestPost(context) {
             const lastLog = logs.find(log => log.item_name === rule.name);
 
             if (rule.type === 'time') {
-                // 统一逻辑：无论有无保养记录，都计算下一个保养日期
-                const baseDate = lastLog ? new Date(lastLog.maintenance_date) : purchaseDate;
-                const lastMaintenanceText = lastLog ? lastLog.maintenance_date : '购车日期';
+                const baseDate = lastLog ? parseDate(lastLog.maintenance_date) : purchaseDate;
+                const lastMaintenanceText = lastLog ? (lastLog.maintenance_date || '').split('T')[0] : '购车日期';
                 
-                let nextMaintenanceDate = new Date(baseDate);
+                let nextMaintenanceDate = new Date(baseDate.getTime()); // Clone date
 
-                // 计算下一次保养日期
-                if (rule.unit === 'year') {
-                    nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
-                } else if (rule.unit === 'month') {
-                    nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
+                // Loop to find the first maintenance date that is after today
+                while (nextMaintenanceDate <= today) {
+                    if (rule.unit === 'year') {
+                        nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
+                    } else if (rule.unit === 'month') {
+                        nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
+                    }
                 }
-                
+
                 const diffTime = nextMaintenanceDate - today;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-                if (diffDays <= 0) {
+                // Check if item is overdue by comparing with the first theoretical due date
+                let firstDueDate = new Date(baseDate.getTime()); // Clone date
+                if (rule.unit === 'year') {
+                    firstDueDate.setFullYear(firstDueDate.getFullYear() + rule.value);
+                } else if (rule.unit === 'month') {
+                    firstDueDate.setMonth(firstDueDate.getMonth() + rule.value);
+                }
+
+                if (today >= firstDueDate) {
                     suggestions.push(`${rule.name} (上次保养: ${lastMaintenanceText}, 已到期)`);
                 }
                 
                 debugInfo.timeBased.push(`${rule.name}: 下次保养日期 ${nextMaintenanceDate.toISOString().split('T')[0]}, 还剩 ${diffDays > 0 ? diffDays : 0} 天`);
 
             } else if (rule.type === 'mileage') {
-                // 如果有保养记录，从最后一次保养里程开始计算；否则从0开始
                 const baseMileage = lastLog ? lastLog.mileage : 0;
                 const nextMaintenanceMileage = baseMileage + rule.value;
                 const diffMileage = nextMaintenanceMileage - current_mileage;
 
-                // 如果当前里程超过了下次保养里程，则添加建议
                 if (diffMileage <= 0) {
                     suggestions.push(`${rule.name} (上次保养里程: ${baseMileage}km, 已到期)`);
                 }
