@@ -28,6 +28,11 @@ export async function onRequestPost(context) {
 
         const suggestions = [];
         const today = new Date();
+        const debugInfo = {
+            queryDate: today.toISOString().split('T')[0],
+            timeBased: [],
+            mileageBased: []
+        };
 
         // 3. 遍历所有规则，生成保养建议
         for (const rule of maintenanceRules) {
@@ -47,23 +52,30 @@ export async function onRequestPost(context) {
                     nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
                 }
                 
-                // 如果下一次保养日期已过，则添加建议
-                if (today > nextMaintenanceDate) {
+                const diffTime = nextMaintenanceDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays <= 0) {
                     suggestions.push(`${rule.name} (上次保养: ${lastMaintenanceText}, 已到期)`);
                 }
+                
+                debugInfo.timeBased.push(`${rule.name}: 下次保养日期 ${nextMaintenanceDate.toISOString().split('T')[0]}, 还剩 ${diffDays > 0 ? diffDays : 0} 天`);
+
             } else if (rule.type === 'mileage') {
                 // 如果有保养记录，从最后一次保养里程开始计算；否则从0开始
                 const baseMileage = lastLog ? lastLog.mileage : 0;
                 const nextMaintenanceMileage = baseMileage + rule.value;
+                const diffMileage = nextMaintenanceMileage - current_mileage;
 
                 // 如果当前里程超过了下次保养里程，则添加建议
-                if (current_mileage >= nextMaintenanceMileage) {
+                if (diffMileage <= 0) {
                     suggestions.push(`${rule.name} (上次保养里程: ${baseMileage}km, 已到期)`);
                 }
+                debugInfo.mileageBased.push(`${rule.name}: 下次保养里程 ${nextMaintenanceMileage}km, 还差 ${diffMileage > 0 ? diffMileage : 0} km`);
             }
         }
 
-        return new Response(JSON.stringify({ suggestions }), {
+        return new Response(JSON.stringify({ suggestions, debugInfo }), {
             headers: { 'Content-Type': 'application/json' },
         });
 

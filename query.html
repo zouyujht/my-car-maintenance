@@ -45,16 +45,38 @@
                     throw new Error(result.error || '查询失败');
                 }
 
+                let html = '';
+
                 if (result.suggestions && result.suggestions.length > 0) {
-                    resultsDiv.innerHTML = `
+                    html += `
                         <p>根据您的车辆数据，建议进行以下保养：</p>
                         <ul>
                             ${result.suggestions.map(item => `<li>${item}</li>`).join('')}
                         </ul>
                     `;
                 } else {
-                    resultsDiv.textContent = '太棒了！根据现有规则，您的爱车暂时无需保养。';
+                    html += '<p>太棒了！根据现有规则，您的爱车暂时无需保养。</p>';
                 }
+
+                // Add debug info
+                if (result.debugInfo) {
+                    html += `
+                        <hr>
+                        <h3>调试信息</h3>
+                        <p><strong>查询日期:</strong> ${result.debugInfo.queryDate}</p>
+                        <h4>按时间计算:</h4>
+                        <ul>
+                            ${result.debugInfo.timeBased.map(item => `<li>${item}</li>`).join('')}
+                        </ul>
+                        <h4>按里程计算:</h4>
+                        <ul>
+                            ${result.debugInfo.mileageBased.map(item => `<li>${item}</li>`).join('')}
+                        </ul>
+                    `;
+                }
+
+                resultsDiv.innerHTML = html;
+
             } catch (error) {
                 resultsDiv.innerHTML = `<p style="color: red;">查询出错: ${error.message}</p>`;
             }
