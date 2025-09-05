@@ -4,11 +4,11 @@
 export async function onRequest(context) {
   switch (context.request.method) {
     case 'GET':
-      return onRequestGet(context);
+      return await onRequestGet(context);
     case 'POST':
-      return onRequestPost(context);
+      return await onRequestPost(context);
     case 'DELETE':
-      return onRequestDelete(context);
+      return await onRequestDelete(context);
     default:
       return new Response('Method Not Allowed', { status: 405 });
   }
@@ -82,7 +82,7 @@ async function onRequestGet(context) {
 }
 
 // 处理 DELETE 请求的函数
-export async function onRequestDelete(context) {
+async function onRequestDelete(context) {
     try {
         const url = new URL(context.request.url);
         const id = url.searchParams.get('id');
