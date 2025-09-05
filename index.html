@@ -159,11 +159,23 @@
             });
         });
         
+        // 统一的事件委托，处理所有删除按钮的点击
+            document.getElementById('logsTable').addEventListener('click', (e) => {
+                // 检查被点击的元素是否是删除按钮
+                if (e.target && e.target.matches('button.delete-btn')) {
+                    const id = e.target.getAttribute('data-id');
+                    if (id) {
+                        deleteLog(id);
+                    }
+                }
+            });
+        });
+        
         async function loadHistory() {
             const tableBody = document.querySelector('#logsTable tbody');
             tableBody.innerHTML = '<tr><td colspan="4">加载中...</td></tr>';
             try {
-                const response = await fetch('/api/log');
+                const response = await fetch('/api/maintenance');
                 const logs = await response.json();
                 if(response.ok) {
                     if (logs.length > 0) {
@@ -173,7 +185,7 @@
                                 <td>${log.mileage}</td>
                                 <td>${log.item_name}</td>
                                 <td>
-                                    ${log.item_name !== '车辆购买' ? `<button onclick="deleteLog(${log.id})">删除</button>` : ''}
+                                    ${log.item_name !== '车辆购买' ? `<button class="delete-btn" data-id="${log.id}">删除</button>` : ''}
                                 </td>
                             </tr>
                         `).join('');
@@ -193,13 +205,28 @@
                 return;
             }
             try {
-                // 使用 POST 请求到新的 endpoint
-                const response = await fetch(`/api/delete-log`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ id: id }) // 将 id 放入请求体
+                const response = await fetch(`/api/maintenance?id=${id}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    loadHistory(); // 重新加载
+                } else {
+                    throw new Error(result.error || '删除失败');
+                }
+            } catch (error) {
+                alert('删除时发生错误: ' + error.message);
+            }
+        }
+
+        async function deleteLog(id) {
+            if (!confirm('确定要删除这条记录吗？')) {
+                return;
+            }
+            try {
+                const response = await fetch(`/api/log?id=${id}`, {
+                    method: 'DELETE'
                 });
                 const result = await response.json();
                 if (response.ok) {
