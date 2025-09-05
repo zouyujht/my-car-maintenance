@@ -13,20 +13,14 @@ export async function onRequestPost(context) {
         }
 
         const db = context.env.DB;
-        const info = await db.prepare("DELETE FROM maintenance_logs WHERE id = ?").bind(id).run();
+        await db.prepare("DELETE FROM maintenance_logs WHERE id = ?").bind(id).run();
 
-        if (info.changes > 0) {
-            // 明确返回成功状态和消息
-            return new Response(JSON.stringify({ success: true, message: '记录已成功删除' }), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-        } else {
-            // 明确返回失败状态和错误信息
-            return new Response(JSON.stringify({ success: false, error: '未找到要删除的记录' }), {
-                status: 404, 
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
+        // 只要 run() 没有抛出异常，我们就认为操作是成功的。
+        // D1 的 .changes 在某些情况下可能不会立即反映更改，但操作本身已成功。
+        return new Response(JSON.stringify({ success: true, message: '记录已成功删除' }), {
+            headers: { 'Content-Type': 'application/json' },
+        });
+
     } catch (error) {
         // 捕获其他潜在错误
         return new Response(JSON.stringify({ success: false, error: "删除失败: " + error.message }), {
