@@ -55,6 +55,7 @@ export async function onRequestPost(context) {
                 const lastMaintenanceText = lastLog ? (lastLog.maintenance_date || '').split('T')[0] : '购车日期';
                 
                 let nextMaintenanceDate;
+                let isOverdue = false;
 
                 // Calculate the first theoretical due date from the base date
                 let firstDueDate = new Date(baseDate.getTime());
@@ -68,6 +69,7 @@ export async function onRequestPost(context) {
                 if (firstDueDate > today) {
                     nextMaintenanceDate = firstDueDate;
                 } else {
+                    isOverdue = true;
                     // Otherwise, the item is overdue or due today.
                     // Add a suggestion to the list.
                     suggestions.push(`${rule.name} (上次保养: ${lastMaintenanceText}, 已到期)`);
@@ -87,7 +89,7 @@ export async function onRequestPost(context) {
                 const diffTime = nextMaintenanceDate - today;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
-                debugInfo.timeBased.push(`${rule.name}: 下次保养日期 ${nextMaintenanceDate.toISOString().split('T')[0]}, 还剩 ${diffDays > 0 ? diffDays : 0} 天`);
+                debugInfo.timeBased.push(`${rule.name}: 下次保养日期 ${nextMaintenanceDate.toISOString().split('T')[0]}, 还剩 ${isOverdue ? 0 : (diffDays > 0 ? diffDays : 0)} 天`);
 
             } else if (rule.type === 'mileage') {
                 const baseMileage = lastLog ? lastLog.mileage : 0;
