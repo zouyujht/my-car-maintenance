@@ -63,3 +63,37 @@ export async function onRequestGet(context) {
         });
     }
 }
+
+// 添加一个DELETE方法来删除一条记录
+export async function onRequestDelete(context) {
+    try {
+        const url = new URL(context.request.url);
+        const id = url.searchParams.get('id');
+
+        if (!id) {
+            return new Response(JSON.stringify({ error: 'Log ID is required' }), { 
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const db = context.env.DB;
+        const info = await db.prepare("DELETE FROM maintenance_logs WHERE id = ?").bind(id).run();
+
+        if (info.changes > 0) {
+            return new Response(JSON.stringify({ message: '记录已成功删除' }), {
+                headers: { 'Content-Type': 'application/json' },
+            });
+        } else {
+            return new Response(JSON.stringify({ error: '未找到要删除的记录' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+    } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+}

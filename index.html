@@ -10,12 +10,19 @@
     <h1>汽车保养日志</h1>
     <a href="/query.html">前往查询保养建议 &rarr;</a>
 
+        <div class="card">
+        <h2>设置购车日期</h2>
+        <form id="purchaseDateForm">
+            <label for="purchaseDate">购车日期:</label>
+            <input type="date" id="purchaseDate" required>
+            <button type="submit" id="savePurchaseDateBtn">保存购车日期</button>
+        </form>
+        <div id="purchaseDateMessage"></div>
+    </div>
+
     <div class="card">
         <h2>记录新的保养</h2>
         <form id="logForm">
-            <label for="purchaseDate">购车日期 (首次使用或需修改时填写):</label>
-            <input type="date" id="purchaseDate" required>
-
             <label for="maintenanceDate">保养日期:</label>
             <input type="date" id="maintenanceDate" required>
 
@@ -39,6 +46,171 @@
         </form>
         <div id="message"></div>
     </div>
+
+    <div class="card">
+        <h2>历史保养记录</h2>
+        <table id="logsTable">
+            <thead><tr><th>日期</th><th>里程(km)</th><th>项目</th><th>操作</th></tr></thead>
+            <tbody><!-- 记录将在这里动态加载 --></tbody>
+        </table>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const logForm = document.getElementById('logForm');
+            const messageDiv = document.getElementById('message');
+            const purchaseDateForm = document.getElementById('purchaseDateForm');
+            const purchaseDateInput = document.getElementById('purchaseDate');
+            const savePurchaseDateBtn = document.getElementById('savePurchaseDateBtn');
+            const purchaseDateMessage = document.getElementById('purchaseDateMessage');
+
+            // 检查并设置购车日期
+            const savedPurchaseDate = localStorage.getItem('carPurchaseDate');
+            if (savedPurchaseDate) {
+                purchaseDateInput.value = savedPurchaseDate;
+                purchaseDateInput.disabled = true;
+                savePurchaseDateBtn.disabled = true;
+                purchaseDateMessage.textContent = `购车日期已设置为: ${savedPurchaseDate}。如需修改，请联系管理员。`;
+                purchaseDateMessage.style.color = 'green';
+            }
+            
+            // 加载历史记录
+            loadHistory();
+
+            // 保存购车日期事件
+            purchaseDateForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const purchaseDate = purchaseDateInput.value;
+                if (!purchaseDate) {
+                    purchaseDateMessage.textContent = '请选择一个日期。';
+                    purchaseDateMessage.style.color = 'red';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/log', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ purchase_date: purchaseDate })
+                    });
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        localStorage.setItem('carPurchaseDate', purchaseDate);
+                        purchaseDateInput.disabled = true;
+                        savePurchaseDateBtn.disabled = true;
+                        purchaseDateMessage.textContent = `购车日期已成功保存为: ${purchaseDate}`;
+                        purchaseDateMessage.style.color = 'green';
+                        loadHistory(); // 重新加载以显示“车辆购买”记录
+                    } else {
+                        throw new Error(result.message || '保存失败');
+                    }
+                } catch (error) {
+                    purchaseDateMessage.textContent = '错误: ' + error.message;
+                    purchaseDateMessage.style.color = 'red';
+                }
+            });
+
+            // 提交保养记录事件
+            logForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                if (!localStorage.getItem('carPurchaseDate')) {
+                    messageDiv.textContent = '请先设置并保存购车日期！';
+                    messageDiv.style.color = 'red';
+                    return;
+                }
+
+                messageDiv.textContent = '提交中...';
+
+                const selectedItems = Array.from(document.querySelectorAll('input[name="item"]:checked')).map(el => el.value);
+                if (selectedItems.length === 0) {
+                    messageDiv.textContent = '请至少选择一个保养项目！';
+                    messageDiv.style.color = 'red';
+                    return;
+                }
+
+                const data = {
+                    maintenance_date: document.getElementById('maintenanceDate').value,
+                    mileage: parseInt(document.getElementById('mileage').value),
+                    items: selectedItems
+                };
+
+                try {
+                    const response = await fetch('/api/log', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        messageDiv.textContent = result.message;
+                        messageDiv.style.color = 'green';
+                        logForm.reset();
+                        loadHistory(); // 重新加载历史
+                    } else {
+                        throw new Error(result.message || '提交失败');
+                    }
+                } catch (error) {
+                    messageDiv.textContent = '错误: ' + error.message;
+                    messageDiv.style.color = 'red';
+                }
+            });
+        });
+        
+        async function loadHistory() {
+            const tableBody = document.querySelector('#logsTable tbody');
+            tableBody.innerHTML = '<tr><td colspan="4">加载中...</td></tr>';
+            try {
+                const response = await fetch('/api/log');
+                const logs = await response.json();
+                if(response.ok) {
+                    if (logs.length > 0) {
+                        tableBody.innerHTML = logs.map(log => `
+                            <tr id="log-${log.id}">
+                                <td>${log.maintenance_date}</td>
+                                <td>${log.mileage}</td>
+                                <td>${log.item_name}</td>
+                                <td>
+                                    ${log.item_name !== '车辆购买' ? `<button onclick="deleteLog(${log.id})">删除</button>` : ''}
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                         tableBody.innerHTML = '<tr><td colspan="4">暂无记录。</td></tr>';
+                    }
+                } else {
+                     throw new Error(logs.error);
+                }
+            } catch(error) {
+                tableBody.innerHTML = `<tr><td colspan="4">加载历史记录失败: ${error.message}</td></tr>`;
+            }
+        }
+
+        async function deleteLog(id) {
+            if (!confirm('确定要删除这条记录吗？')) {
+                return;
+            }
+            try {
+                const response = await fetch(`/api/log?id=${id}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    loadHistory(); // 重新加载
+                } else {
+                    throw new Error(result.error || '删除失败');
+                }
+            } catch (error) {
+                alert('删除时发生错误: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
+
 
     <div class="card">
         <h2>历史保养记录</h2>
