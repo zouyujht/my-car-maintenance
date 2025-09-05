@@ -34,34 +34,29 @@ export async function onRequestPost(context) {
             const lastLog = logs.find(log => log.item_name === rule.name);
 
             if (rule.type === 'time') {
-                const lastServiceDate = lastLog ? new Date(lastLog.maintenance_date) : purchaseDate;
+                // 如果有保养记录，从最后一次保养日期开始计算；否则从购车日期开始
+                const baseDate = lastLog ? new Date(lastLog.maintenance_date) : purchaseDate;
+                const nextMaintenanceDate = new Date(baseDate);
                 
-                let nextMaintenanceDate = new Date(purchaseDate);
-
-                while (nextMaintenanceDate < lastServiceDate) {
-                    if (rule.unit === 'year') {
-                        nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
-                    } else if (rule.unit === 'month') {
-                        nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
-                    }
-                }
-                
-                // After the loop, or if no service has been done, calculate the next maintenance date from the last calculated point.
+                // 计算下一次保养日期
                 if (rule.unit === 'year') {
                     nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
                 } else if (rule.unit === 'month') {
                     nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
                 }
 
+                // 如果下一次保养日期已过，则添加建议
                 if (today > nextMaintenanceDate) {
                     suggestions.push(`${rule.name} (上次保养: ${lastLog ? lastLog.maintenance_date : '无记录'}, 已到期)`);
                 }
             } else if (rule.type === 'mileage') {
+                // 如果有保养记录，从最后一次保养里程开始计算；否则从0开始
                 const baseMileage = lastLog ? lastLog.mileage : 0;
                 const nextMaintenanceMileage = baseMileage + rule.value;
 
+                // 如果当前里程超过了下次保养里程，则添加建议
                 if (current_mileage >= nextMaintenanceMileage) {
-                    suggestions.push(`${rule.name} (上次保养里程: ${lastLog ? lastLog.mileage : '0'}km, 已到期)`);
+                    suggestions.push(`${rule.name} (上次保养里程: ${baseMileage}km, 已到期)`);
                 }
             }
         }
