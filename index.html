@@ -193,8 +193,13 @@
                 return;
             }
             try {
-                const response = await fetch(`/api/log?id=${id}`, {
-                    method: 'DELETE'
+                // 使用 POST 请求到新的 endpoint
+                const response = await fetch(`/api/delete-log`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ id: id }) // 将 id 放入请求体
                 });
                 const result = await response.json();
                 if (response.ok) {
