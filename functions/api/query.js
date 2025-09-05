@@ -4,9 +4,9 @@ const maintenanceRules = [
     { name: '机油', type: 'time', value: 6, unit: 'month' },
     { name: '制动液', type: 'time', value: 3, unit: 'year' },
     { name: '活性炭罐过滤器', type: 'time', value: 3, unit: 'year' },
-    { name: '传动皮带', type: 'time', value: 3, unit: 'year' },
     { name: '四轮对换', type: 'time', value: 2, unit: 'year' },
     { name: '空气滤芯', type: 'time', value: 1, unit: 'year' },
+    { name: '传动皮带', type: 'time', value: 3, unit: 'year' },
     { name: '火花塞', type: 'mileage', value: 30000 },
     { name: '节流阀', type: 'mileage', value: 20000 },
 ];
@@ -34,14 +34,18 @@ export async function onRequestPost(context) {
             const lastLog = logs.find(log => log.item_name === rule.name);
 
             if (rule.type === 'time') {
-                const baseDate = lastLog ? new Date(lastLog.maintenance_date) : purchaseDate;
-                const nextMaintenanceDate = new Date(baseDate);
-                if (rule.unit === 'year') {
-                    nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
-                } else if (rule.unit === 'month') {
-                    nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
-                }
+                const lastServiceDate = lastLog ? new Date(lastLog.maintenance_date) : purchaseDate;
                 
+                let nextMaintenanceDate = new Date(purchaseDate);
+
+                while (nextMaintenanceDate <= lastServiceDate) {
+                    if (rule.unit === 'year') {
+                        nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
+                    } else if (rule.unit === 'month') {
+                        nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
+                    }
+                }
+
                 if (today > nextMaintenanceDate) {
                     suggestions.push(`${rule.name} (上次保养: ${lastLog ? lastLog.maintenance_date : '无记录'}, 已到期)`);
                 }
