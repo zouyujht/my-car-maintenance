@@ -1,4 +1,21 @@
-export async function onRequestPost(context) {
+// functions/api/log.js
+
+// 统一处理所有HTTP方法的函数
+export async function onRequest(context) {
+  switch (context.request.method) {
+    case 'GET':
+      return await onRequestGet(context);
+    case 'POST':
+      return await onRequestPost(context);
+    case 'DELETE':
+      return await onRequestDelete(context);
+    default:
+      return new Response('Method Not Allowed', { status: 405 });
+  }
+}
+
+// 处理 POST 请求的函数
+async function onRequestPost(context) {
   try {
     // 从请求中获取JSON数据
     const { purchase_date, maintenance_date, mileage, items } = await context.request.json();
@@ -47,6 +64,57 @@ export async function onRequestPost(context) {
     });
   }
 }
+
+// 处理 GET 请求的函数
+async function onRequestGet(context) {
+    try {
+        const db = context.env.DB;
+        const { results } = await db.prepare("SELECT * FROM maintenance_logs ORDER BY maintenance_date DESC, mileage DESC").all();
+        return new Response(JSON.stringify(results), {
+            headers: { 'Content-Type': 'application/json' },
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+}
+
+// 处理 DELETE 请求的函数
+async function onRequestDelete(context) {
+    try {
+        const url = new URL(context.request.url);
+        const id = url.searchParams.get('id');
+
+        if (!id) {
+            return new Response(JSON.stringify({ error: 'Log ID is required' }), { 
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const db = context.env.DB;
+        const info = await db.prepare("DELETE FROM maintenance_logs WHERE id = ?").bind(id).run();
+
+        if (info.changes > 0) {
+            return new Response(JSON.stringify({ message: '记录已成功删除' }), {
+                headers: { 'Content-Type': 'application/json' },
+            });
+        } else {
+            return new Response(JSON.stringify({ error: '未找到要删除的记录' }), {
+                status: 404,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+    } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+}
+
 
 // 添加一个GET方法来获取所有历史记录
 export async function onRequestGet(context) {
