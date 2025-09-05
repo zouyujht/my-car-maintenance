@@ -54,31 +54,38 @@ export async function onRequestPost(context) {
                 const baseDate = lastLog ? parseDate(lastLog.maintenance_date) : purchaseDate;
                 const lastMaintenanceText = lastLog ? (lastLog.maintenance_date || '').split('T')[0] : '购车日期';
                 
-                let nextMaintenanceDate = new Date(baseDate.getTime()); // Clone date
+                let nextMaintenanceDate;
 
-                // Loop to find the first maintenance date that is after today
-                while (nextMaintenanceDate <= today) {
-                    if (rule.unit === 'year') {
-                        nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
-                    } else if (rule.unit === 'month') {
-                        nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
-                    }
-                }
-
-                const diffTime = nextMaintenanceDate - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                // Check if item is overdue by comparing with the first theoretical due date
-                let firstDueDate = new Date(baseDate.getTime()); // Clone date
+                // Calculate the first theoretical due date from the base date
+                let firstDueDate = new Date(baseDate.getTime());
                 if (rule.unit === 'year') {
                     firstDueDate.setFullYear(firstDueDate.getFullYear() + rule.value);
                 } else if (rule.unit === 'month') {
                     firstDueDate.setMonth(firstDueDate.getMonth() + rule.value);
                 }
 
-                if (today >= firstDueDate) {
+                // If the first due date is in the future, that's our next maintenance date.
+                if (firstDueDate > today) {
+                    nextMaintenanceDate = firstDueDate;
+                } else {
+                    // Otherwise, the item is overdue or due today.
+                    // Add a suggestion to the list.
                     suggestions.push(`${rule.name} (上次保养: ${lastMaintenanceText}, 已到期)`);
+                    
+                    // And now we find the *next* due date that is actually in the future.
+                    let futureDate = new Date(baseDate.getTime());
+                    while (futureDate <= today) {
+                        if (rule.unit === 'year') {
+                            futureDate.setFullYear(futureDate.getFullYear() + rule.value);
+                        } else if (rule.unit === 'month') {
+                            futureDate.setMonth(futureDate.getMonth() + rule.value);
+                        }
+                    }
+                    nextMaintenanceDate = futureDate;
                 }
+
+                const diffTime = nextMaintenanceDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 
                 debugInfo.timeBased.push(`${rule.name}: 下次保养日期 ${nextMaintenanceDate.toISOString().split('T')[0]}, 还剩 ${diffDays > 0 ? diffDays : 0} 天`);
 
