@@ -7,8 +7,7 @@ export async function onRequest(context) {
       return await onRequestGet(context);
     case 'POST':
       return await onRequestPost(context);
-    case 'DELETE':
-      return await onRequestDelete(context);
+    // DELETE 方法的处理逻辑已被移除
     default:
       return new Response('Method Not Allowed', { status: 405 });
   }
@@ -73,40 +72,6 @@ async function onRequestGet(context) {
         return new Response(JSON.stringify(results), {
             headers: { 'Content-Type': 'application/json' },
         });
-    } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-        });
-    }
-}
-
-// 处理 DELETE 请求的函数
-async function onRequestDelete(context) {
-    try {
-        const url = new URL(context.request.url);
-        const id = url.searchParams.get('id');
-
-        if (!id) {
-            return new Response(JSON.stringify({ error: 'Log ID is required' }), { 
-                status: 400,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
-
-        const db = context.env.DB;
-        const info = await db.prepare("DELETE FROM maintenance_logs WHERE id = ?").bind(id).run();
-
-        if (info.changes > 0) {
-            return new Response(JSON.stringify({ message: '记录已成功删除' }), {
-                headers: { 'Content-Type': 'application/json' },
-            });
-        } else {
-            return new Response(JSON.stringify({ error: '未找到要删除的记录' }), {
-                status: 404,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
     } catch (error) {
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,

@@ -192,19 +192,37 @@
             if (!confirm('确定要删除这条记录吗？')) {
                 return;
             }
+
+            // 禁用所有删除按钮防止重复点击
+            const deleteButtons = document.querySelectorAll('button[onclick^="deleteLog"]');
+            deleteButtons.forEach(button => button.disabled = true);
+
             try {
-                const response = await fetch(`/api/log?id=${id}`, {
-                    method: 'DELETE'
+                // 使用 POST 方法请求新的 /api/delete-log 端点
+                const response = await fetch(`/api/delete-log`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    // 将 id 放在请求体中
+                    body: JSON.stringify({ id: id })
                 });
+                
                 const result = await response.json();
-                if (response.ok) {
-                    alert(result.message);
-                    loadHistory(); // 重新加载
-                } else {
+
+                if (!response.ok || !result.success) {
                     throw new Error(result.error || '删除失败');
                 }
+                
+                // 操作成功后，重新加载历史记录
+                await loadHistory();
+                alert(result.message || '记录已成功删除');
+
             } catch (error) {
                 alert('删除时发生错误: ' + error.message);
+            } finally {
+                // 无论成功或失败，都重新启用按钮（在 loadHistory 之后，按钮会被重新渲染，
+                // 但以防万一 loadHistory 失败，这里的启用逻辑可以作为保障）
+                const newDeleteButtons = document.querySelectorAll('button[onclick^="deleteLog"]');
+                newDeleteButtons.forEach(button => button.disabled = false);
             }
         }
     </script>
