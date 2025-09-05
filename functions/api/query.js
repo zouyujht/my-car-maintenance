@@ -38,12 +38,19 @@ export async function onRequestPost(context) {
                 
                 let nextMaintenanceDate = new Date(purchaseDate);
 
-                while (nextMaintenanceDate <= lastServiceDate) {
+                while (nextMaintenanceDate < lastServiceDate) {
                     if (rule.unit === 'year') {
                         nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
                     } else if (rule.unit === 'month') {
                         nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
                     }
+                }
+                
+                // After the loop, or if no service has been done, calculate the next maintenance date from the last calculated point.
+                if (rule.unit === 'year') {
+                    nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
+                } else if (rule.unit === 'month') {
+                    nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
                 }
 
                 if (today > nextMaintenanceDate) {
