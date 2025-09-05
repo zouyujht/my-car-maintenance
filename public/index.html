@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汽车保养日志</title>
+    <style>/* 简单的样式 */ body{font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 15px; line-height: 1.6;} h1, h2{text-align: center;} form, .card {border: 1px solid #ccc; padding: 20px; border-radius: 8px; margin-bottom: 20px;} label {display: block; margin-bottom: 5px;} input, button {width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box;} button {background-color: #007bff; color: white; border: none; cursor: pointer;} .items-group {display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;} .items-group label {display: flex; align-items: center;} .items-group input {width: auto; margin-right: 5px;} #message {text-align: center; font-weight: bold;} table{width:100%; border-collapse: collapse;} th, td{border: 1px solid #ddd; padding: 8px; text-align: left;}</style>
+</head>
+<body>
+    <h1>汽车保养日志</h1>
+    <a href="/query.html">前往查询保养建议 &rarr;</a>
+
+    <div class="card">
+        <h2>记录新的保养</h2>
+        <form id="logForm">
+            <label for="purchaseDate">购车日期 (首次使用或需修改时填写):</label>
+            <input type="date" id="purchaseDate" required>
+
+            <label for="maintenanceDate">保养日期:</label>
+            <input type="date" id="maintenanceDate" required>
+
+            <label for="mileage">保养时里程 (km):</label>
+            <input type="number" id="mileage" placeholder="例如: 50000" required>
+
+            <label>保养项目 (可多选):</label>
+            <div class="items-group">
+                <label><input type="checkbox" name="item" value="机油"> 机油</label>
+                <label><input type="checkbox" name="item" value="空气滤芯"> 空气滤芯</label>
+                <label><input type="checkbox" name="item" value="火花塞"> 火花塞</label>
+                <label><input type="checkbox" name="item" value="冷却液"> 冷却液</label>
+                <label><input type="checkbox" name="item" value="制动液"> 制动液</label>
+                <label><input type="checkbox" name="item" value="活性炭罐过滤器"> 活性炭罐过滤器</label>
+                <label><input type="checkbox" name="item" value="传动皮带"> 传动皮带</label>
+                <label><input type="checkbox" name="item" value="节流阀"> 节流阀</label>
+                <label><input type="checkbox" name="item" value="四轮对换"> 四轮对换</label>
+            </div>
+
+            <button type="submit">提交记录</button>
+        </form>
+        <div id="message"></div>
+    </div>
+
+    <div class="card">
+        <h2>历史保养记录</h2>
+        <table id="logsTable">
+            <thead><tr><th>日期</th><th>里程(km)</th><th>项目</th></tr></thead>
+            <tbody><!-- 记录将在这里动态加载 --></tbody>
+        </table>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const logForm = document.getElementById('logForm');
+            const messageDiv = document.getElementById('message');
+            const purchaseDateInput = document.getElementById('purchaseDate');
+
+            // 尝试从浏览器本地存储加载购车日期，方便用户
+            const savedPurchaseDate = localStorage.getItem('carPurchaseDate');
+            if (savedPurchaseDate) {
+                purchaseDateInput.value = savedPurchaseDate;
+            }
+            
+            // 加载历史记录
+            loadHistory();
+
+            logForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                messageDiv.textContent = '提交中...';
+
+                const selectedItems = Array.from(document.querySelectorAll('input[name="item"]:checked')).map(el => el.value);
+                if (selectedItems.length === 0) {
+                    messageDiv.textContent = '请至少选择一个保养项目！';
+                    messageDiv.style.color = 'red';
+                    return;
+                }
+
+                const data = {
+                    purchase_date: purchaseDateInput.value,
+                    maintenance_date: document.getElementById('maintenanceDate').value,
+                    mileage: parseInt(document.getElementById('mileage').value),
+                    items: selectedItems
+                };
+
+                try {
+                    const response = await fetch('/api/log', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        messageDiv.textContent = result.message;
+                        messageDiv.style.color = 'green';
+                        localStorage.setItem('carPurchaseDate', data.purchase_date); // 保存购车日期
+                        logForm.reset();
+                        purchaseDateInput.value = localStorage.getItem('carPurchaseDate'); // 重置后恢复购车日期
+                        loadHistory(); // 重新加载历史
+                    } else {
+                        throw new Error(result.message || '提交失败');
+                    }
+                } catch (error) {
+                    messageDiv.textContent = '错误: ' + error.message;
+                    messageDiv.style.color = 'red';
+                }
+            });
+        });
+        
+        async function loadHistory() {
+            const tableBody = document.querySelector('#logsTable tbody');
+            tableBody.innerHTML = '<tr><td colspan="3">加载中...</td></tr>';
+            try {
+                const response = await fetch('/api/log');
+                const logs = await response.json();
+                if(response.ok) {
+                    if (logs.length > 0) {
+                        tableBody.innerHTML = logs.map(log => `
+                            <tr>
+                                <td>${log.maintenance_date}</td>
+                                <td>${log.mileage}</td>
+                                <td>${log.item_name}</td>
+                            </tr>
+                        `).join('');
+                    } else {
+                         tableBody.innerHTML = '<tr><td colspan="3">暂无记录。</td></tr>';
+                    }
+                } else {
+                     throw new Error(logs.error);
+                }
+            } catch(error) {
+                tableBody.innerHTML = `<tr><td colspan="3">加载历史记录失败: ${error.message}</td></tr>`;
+            }
+        }
+    </script>
+</body>
+</html>

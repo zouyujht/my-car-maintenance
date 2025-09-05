@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>保养建议查询</title>
+    <style>/* 样式与index.html相同 */ body{font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 15px; line-height: 1.6;} h1, h2{text-align: center;} form, .card {border: 1px solid #ccc; padding: 20px; border-radius: 8px; margin-bottom: 20px;} label {display: block; margin-bottom: 5px;} input, button {width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box;} button {background-color: #28a745; color: white; border: none; cursor: pointer;} #results {margin-top: 20px;} #results ul {list-style-type: '⚠️ '; padding-left: 20px;} #results li {margin-bottom: 10px;}</style>
+</head>
+<body>
+    <h1>保养建议查询</h1>
+    <a href="/">&larr; 返回保养日志</a>
+
+    <div class="card">
+        <h2>输入当前信息</h2>
+        <form id="queryForm">
+            <label for="currentMileage">当前总里程 (km):</label>
+            <input type="number" id="currentMileage" placeholder="例如: 65000" required>
+            <button type="submit">查询保养建议</button>
+        </form>
+    </div>
+
+    <div class="card" id="resultsCard">
+        <h2>查询结果</h2>
+        <div id="results">请先输入当前里程并点击查询。</div>
+    </div>
+
+    <script>
+        document.getElementById('queryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '正在查询...';
+
+            const mileage = parseInt(document.getElementById('currentMileage').value);
+            
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_mileage: mileage })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || '查询失败');
+                }
+
+                if (result.suggestions && result.suggestions.length > 0) {
+                    resultsDiv.innerHTML = `
+                        <p>根据您的车辆数据，建议进行以下保养：</p>
+                        <ul>
+                            ${result.suggestions.map(item => `<li>${item}</li>`).join('')}
+                        </ul>
+                    `;
+                } else {
+                    resultsDiv.textContent = '太棒了！根据现有规则，您的爱车暂时无需保养。';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color: red;">查询出错: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
