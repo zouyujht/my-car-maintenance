@@ -4,19 +4,37 @@ export async function onRequestPost(context) {
     const { purchase_date, maintenance_date, mileage, items } = await context.request.json();
     const db = context.env.DB; // 绑定我们在 wrangler.toml 中定义的数据库
 
-    // 如果提供了购车日期，尝试插入它。UNIQUE约束会防止重复插入。
+    // 如果提供了购车日期，处理购车信息和初始记录
     if (purchase_date) {
+      // 检查是否已存在购车信息
+      const carInfo = await db.prepare("SELECT purchase_date FROM car_info LIMIT 1").first();
+      
+      // 使用 INSERT OR IGNORE 插入购车日期，避免重复
       await db.prepare("INSERT OR IGNORE INTO car_info (purchase_date) VALUES (?)")
               .bind(purchase_date)
               .run();
+
+      // 如果是首次记录购车日期，则添加一条“车辆购买”的初始日志
+      if (!carInfo) {
+        await db.prepare("INSERT INTO maintenance_logs (maintenance_date, mileage, item_name) VALUES (?, ?, ?)")
+                .bind(purchase_date, 0, "车辆购买")
+                .run();
+      }
     }
 
-    // 为每个保养项目准备插入语句
-    const stmt = db.prepare("INSERT INTO maintenance_logs (maintenance_date, mileage, item_name) VALUES (?, ?, ?)");
-
-    // 批量插入所有保养项目
-    const batch = items.map(item => stmt.bind(maintenance_date, mileage, item));
-    await db.batch(batch);
+    // 如果请求中包含保养项目，则批量插入
+    if (items && Array.isArray(items) && items.length > 0) {
+        // 确保保养日期和里程已提供
+        if (!maintenance_date || typeof mileage === 'undefined') {
+            return new Response(JSON.stringify({ success: false, message: "保存保养项目时，必须提供 maintenance_date 和 mileage。" }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        const stmt = db.prepare("INSERT INTO maintenance_logs (maintenance_date, mileage, item_name) VALUES (?, ?, ?)");
+        const batch = items.map(item => stmt.bind(maintenance_date, mileage, item));
+        await db.batch(batch);
+    }
 
     return new Response(JSON.stringify({ success: true, message: "保养记录已成功保存！" }), {
       headers: { 'Content-Type': 'application/json' },

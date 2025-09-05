@@ -36,8 +36,8 @@ export async function onRequestPost(context) {
             if (rule.type === 'time') {
                 // 如果有保养记录，从最后一次保养日期开始计算；否则从购车日期开始
                 const baseDate = lastLog ? new Date(lastLog.maintenance_date) : purchaseDate;
-                const nextMaintenanceDate = new Date(baseDate);
-                
+                let nextMaintenanceDate = new Date(baseDate);
+
                 // 计算下一次保养日期
                 if (rule.unit === 'year') {
                     nextMaintenanceDate.setFullYear(nextMaintenanceDate.getFullYear() + rule.value);
@@ -45,9 +45,23 @@ export async function onRequestPost(context) {
                     nextMaintenanceDate.setMonth(nextMaintenanceDate.getMonth() + rule.value);
                 }
 
+                // 如果没有保养记录，且当前已经超过了第一个周期，也需要建议
+                if (!lastLog) {
+                    let firstMaintenanceDate = new Date(purchaseDate);
+                    if (rule.unit === 'year') {
+                        firstMaintenanceDate.setFullYear(firstMaintenanceDate.getFullYear() + rule.value);
+                    } else if (rule.unit === 'month') {
+                        firstMaintenanceDate.setMonth(firstMaintenanceDate.getMonth() + rule.value);
+                    }
+                    if (today > firstMaintenanceDate) {
+                         suggestions.push(`${rule.name} (上次保养: 购车日期, 已到期)`);
+                         continue; //避免重复添加
+                    }
+                }
+                
                 // 如果下一次保养日期已过，则添加建议
-                if (today > nextMaintenanceDate) {
-                    suggestions.push(`${rule.name} (上次保养: ${lastLog ? lastLog.maintenance_date : '无记录'}, 已到期)`);
+                if (lastLog && today > nextMaintenanceDate) {
+                    suggestions.push(`${rule.name} (上次保养: ${lastLog.maintenance_date}, 已到期)`);
                 }
             } else if (rule.type === 'mileage') {
                 // 如果有保养记录，从最后一次保养里程开始计算；否则从0开始
