@@ -3,264 +3,232 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>汽车保养日志</title>
-    <style>/* 简单的样式 */ body{font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 15px; line-height: 1.6;} h1, h2{text-align: center;} form, .card {border: 1px solid #ccc; padding: 20px; border-radius: 8px; margin-bottom: 20px;} label {display: block; margin-bottom: 5px;} input, button {width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box;} button {background-color: #007bff; color: white; border: none; cursor: pointer;} .items-group {display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;} .items-group label {display: flex; align-items: center;} .items-group input {width: auto; margin-right: 5px;} #message {text-align: center; font-weight: bold;} table{width:100%; border-collapse: collapse;} th, td{border: 1px solid #ddd; padding: 8px; text-align: left;}</style>
+    <title>我的汽车保养</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #0056b3;
+        }
+        form div {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="date"],
+        input[type="number"],
+        input[type="text"],
+        select {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .delete-button {
+            background-color: #dc3545;
+            margin-left: 10px;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+        #purchaseDateDisplay {
+            font-weight: bold;
+            color: #28a745;
+        }
+        #historyTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        #historyTable th,
+        #historyTable td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #historyTable th {
+            background-color: #f2f2f2;
+        }
+        .debug-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .hidden {
+            display: none;
+        }
+        #password-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .password-prompt {
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .password-prompt input {
+            margin-bottom: 15px;
+        }
+        .password-prompt button {
+            width: 100%;
+        }
+        .password-prompt .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>汽车保养日志</h1>
-    <a href="/query.html">前往查询保养建议 &rarr;</a>
-
-        <div class="card">
-        <h2>设置购车日期</h2>
-        <form id="purchaseDateForm">
-            <label for="purchaseDate">购车日期:</label>
-            <input type="date" id="purchaseDate" required>
-            <button type="submit" id="savePurchaseDateBtn">保存购车日期</button>
-            <button type="button" id="deletePurchaseDateBtn" style="display: none; background-color: #dc3545;">删除购车日期</button>
-        </form>
-        <div id="purchaseDateMessage"></div>
+    <div id="password-overlay">
+        <div class="password-prompt">
+            <h2>请输入密码</h2>
+            <input type="password" id="password-input" placeholder="密码">
+            <button id="password-submit">进入</button>
+            <p id="password-error" class="error hidden"></p>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>记录新的保养</h2>
-        <form id="logForm">
-            <label for="maintenanceDate">保养日期:</label>
-            <input type="date" id="maintenanceDate" required>
+    <div class="container hidden" id="main-content">
+        <h1>我的汽车保养记录</h1>
 
-            <label for="mileage">保养时里程 (km):</label>
-            <input type="number" id="mileage" placeholder="例如: 50000" required>
-
-            <label>保养项目 (可多选):</label>
-            <div class="items-group">
-                <label><input type="checkbox" name="item" value="机油"> 机油</label>
-                <label><input type="checkbox" name="item" value="空气滤芯"> 空气滤芯</label>
-                <label><input type="checkbox" name="item" value="火花塞"> 火花塞</label>
-                <label><input type="checkbox" name="item" value="冷却液"> 冷却液</label>
-                <label><input type="checkbox" name="item" value="制动液"> 制动液</label>
-                <label><input type="checkbox" name="item" value="活性炭罐过滤器"> 活性炭罐过滤器</label>
-                <label><input type="checkbox" name="item" value="传动皮带"> 传动皮带</label>
-                <label><input type="checkbox" name="item" value="节流阀"> 节流阀</label>
-                <label><input type="checkbox" name="item" value="四轮对换"> 四轮对换</label>
+        <section>
+            <h2>购车日期</h2>
+            <div id="purchaseDateSection">
+                <label for="purchaseDate">购车日期:</label>
+                <input type="date" id="purchaseDate">
+                <button id="savePurchaseDate">保存购车日期</button>
+                <button id="deletePurchaseDate" class="delete-button hidden">删除购车日期</button>
             </div>
+            <p>当前购车日期: <span id="purchaseDateDisplay">未设置</span></p>
+        </section>
 
-            <button type="submit">提交记录</button>
-        </form>
-        <div id="message"></div>
-    </div>
+        <section>
+            <h2>记录保养</h2>
+            <form id="maintenanceForm">
+                <div>
+                    <label for="maintenanceDate">保养日期:</label>
+                    <input type="date" id="maintenanceDate" required>
+                </div>
+                <div>
+                    <label for="itemName">保养项目:</label>
+                    <select id="itemName" required>
+                        <option value="">请选择项目</option>
+                        <option value="机油">机油</option>
+                        <option value="空气滤芯">空气滤芯</option>
+                        <option value="火花塞">火花塞</option>
+                        <option value="冷却液">冷却液</option>
+                        <option value="制动液">制动液</option>
+                        <option value="活性炭罐过滤器">活性炭罐过滤器</option>
+                        <option value="传动皮带">传动皮带</option>
+                        <option value="节流阀">节流阀</option>
+                        <option value="四轮对换">四轮对换</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="mileage">当前里程 (km):</label>
+                    <input type="number" id="mileage" required>
+                </div>
+                <button type="submit">添加保养记录</button>
+            </form>
+        </section>
 
-    <div class="card">
-        <h2>历史保养记录</h2>
-        <table id="logsTable">
-            <thead><tr><th>日期</th><th>里程(km)</th><th>项目</th><th>操作</th></tr></thead>
-            <tbody><!-- 记录将在这里动态加载 --></tbody>
-        </table>
+        <section>
+            <h2>保养历史</h2>
+            <table id="historyTable">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>项目</th>
+                        <th>里程 (km)</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    <!-- History records will be loaded here -->
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>保养建议</h2>
+            <button id="getSuggestions">获取保养建议</button>
+            <div id="suggestionsOutput"></div>
+            <h3>调试信息</h3>
+            <div id="debugInfoOutput" class="debug-info"></div>
+        </section>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const logForm = document.getElementById('logForm');
-            const messageDiv = document.getElementById('message');
-            const purchaseDateForm = document.getElementById('purchaseDateForm');
-            const purchaseDateInput = document.getElementById('purchaseDate');
-            const savePurchaseDateBtn = document.getElementById('savePurchaseDateBtn');
-            const purchaseDateMessage = document.getElementById('purchaseDateMessage');
-            const deletePurchaseDateBtn = document.getElementById('deletePurchaseDateBtn');
+        const PASSWORD = "720720";
+        const passwordInput = document.getElementById('password-input');
+        const passwordSubmit = document.getElementById('password-submit');
+        const passwordError = document.getElementById('password-error');
+        const passwordOverlay = document.getElementById('password-overlay');
+        const mainContent = document.getElementById('main-content');
 
-            function updatePurchaseDateUI() {
-                const savedPurchaseDate = localStorage.getItem('carPurchaseDate');
-                if (savedPurchaseDate) {
-                    purchaseDateInput.value = savedPurchaseDate;
-                    purchaseDateInput.disabled = true;
-                    savePurchaseDateBtn.disabled = true;
-                    deletePurchaseDateBtn.style.display = 'inline-block'; // Show delete button
-                    purchaseDateMessage.textContent = `购车日期已设置为: ${savedPurchaseDate}。`;
-                    purchaseDateMessage.style.color = 'green';
-                } else {
-                    purchaseDateInput.value = '';
-                    purchaseDateInput.disabled = false;
-                    savePurchaseDateBtn.disabled = false;
-                    deletePurchaseDateBtn.style.display = 'none'; // Hide delete button
-                    purchaseDateMessage.textContent = '请设置购车日期。';
-                    purchaseDateMessage.style.color = 'blue';
-                }
+        passwordSubmit.addEventListener('click', () => {
+            if (passwordInput.value === PASSWORD) {
+                passwordOverlay.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+            } else {
+                passwordError.textContent = "密码错误，请重试。";
+                passwordError.classList.remove('hidden');
             }
-            
-            // Initial UI setup
-            updatePurchaseDateUI();
-
-            // 加载历史记录
-            loadHistory();
-
-            // 保存购车日期事件
-            purchaseDateForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const purchaseDate = purchaseDateInput.value;
-                if (!purchaseDate) {
-                    purchaseDateMessage.textContent = '请选择一个日期。';
-                    purchaseDateMessage.style.color = 'red';
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/api/log', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ purchase_date: purchaseDate })
-                    });
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        localStorage.setItem('carPurchaseDate', purchaseDate);
-                        updatePurchaseDateUI(); // Update UI
-                        loadHistory(); // 重新加载以显示“车辆购买”记录
-                    } else {
-                        throw new Error(result.message || '保存失败');
-                    }
-                } catch (error) {
-                    purchaseDateMessage.textContent = '错误: ' + error.message;
-                    purchaseDateMessage.style.color = 'red';
-                }
-            });
-
-            // 删除购车日期事件
-            deletePurchaseDateBtn.addEventListener('click', async () => {
-                if (!confirm('确定要删除购车日期吗？这将同时删除所有相关的保养记录！')) {
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/api/car-info', {
-                        method: 'DELETE',
-                    });
-                    const result = await response.json();
-
-                    if (response.ok && result.success) {
-                        localStorage.removeItem('carPurchaseDate');
-                        updatePurchaseDateUI(); // Update UI
-                        loadHistory(); // Refresh history
-                        alert('购车日期已成功删除。');
-                    } else {
-                        throw new Error(result.error || '删除失败');
-                    }
-                } catch (error) {
-                    alert('错误: ' + error.message);
-                }
-            });
-
-            // 提交保养记录事件
-            logForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-
-                if (!localStorage.getItem('carPurchaseDate')) {
-                    messageDiv.textContent = '请先设置并保存购车日期！';
-                    messageDiv.style.color = 'red';
-                    return;
-                }
-
-                messageDiv.textContent = '提交中...';
-
-                const selectedItems = Array.from(document.querySelectorAll('input[name="item"]:checked')).map(el => el.value);
-                if (selectedItems.length === 0) {
-                    messageDiv.textContent = '请至少选择一个保养项目！';
-                    messageDiv.style.color = 'red';
-                    return;
-                }
-
-                const data = {
-                    maintenance_date: document.getElementById('maintenanceDate').value,
-                    mileage: parseInt(document.getElementById('mileage').value),
-                    items: selectedItems
-                };
-
-                try {
-                    const response = await fetch('/api/log', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data)
-                    });
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        messageDiv.textContent = result.message;
-                        messageDiv.style.color = 'green';
-                        logForm.reset();
-                        loadHistory(); // 重新加载历史
-                    } else {
-                        throw new Error(result.message || '提交失败');
-                    }
-                } catch (error) {
-                    messageDiv.textContent = '错误: ' + error.message;
-                    messageDiv.style.color = 'red';
-                }
-            });
         });
-        
-        async function loadHistory() {
-            const tableBody = document.querySelector('#logsTable tbody');
-            tableBody.innerHTML = '<tr><td colspan="4">加载中...</td></tr>';
-            try {
-                const response = await fetch('/api/log');
-                const logs = await response.json();
-                if(response.ok) {
-                    if (logs.length > 0) {
-                        tableBody.innerHTML = logs.map(log => `
-                            <tr id="log-${log.id}">
-                                <td>${log.maintenance_date}</td>
-                                <td>${log.mileage}</td>
-                                <td>${log.item_name}</td>
-                                <td>
-                                    ${log.item_name !== '车辆购买' ? `<button onclick="deleteLog(${log.id})">删除</button>` : ''}
-                                </td>
-                            </tr>
-                        `).join('');
-                    } else {
-                         tableBody.innerHTML = '<tr><td colspan="4">暂无记录。</td></tr>';
-                    }
-                } else {
-                     throw new Error(logs.error);
-                }
-            } catch(error) {
-                tableBody.innerHTML = `<tr><td colspan="4">加载历史记录失败: ${error.message}</td></tr>`;
+
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                passwordSubmit.click();
             }
-        }
+        });
 
-        async function deleteLog(id) {
-            if (!confirm('确定要删除这条记录吗？')) {
-                return;
-            }
-
-            // 禁用所有删除按钮防止重复点击
-            const deleteButtons = document.querySelectorAll('button[onclick^="deleteLog"]');
-            deleteButtons.forEach(button => button.disabled = true);
-
-            try {
-                // 使用 POST 方法请求新的 /api/delete-log 端点
-                const response = await fetch(`/api/delete-log`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    // 将 id 放在请求体中
-                    body: JSON.stringify({ id: id })
-                });
-                
-                const result = await response.json();
-
-                if (!response.ok || !result.success) {
-                    throw new Error(result.error || '删除失败');
-                }
-                
-                // 操作成功后，重新加载历史记录
-                await loadHistory();
-                alert(result.message || '记录已成功删除');
-
-            } catch (error) {
-                alert('删除时发生错误: ' + error.message);
-            } finally {
-                // 无论成功或失败，都重新启用按钮（在 loadHistory 之后，按钮会被重新渲染，
-                // 但以防万一 loadHistory 失败，这里的启用逻辑可以作为保障）
-                const newDeleteButtons = document.querySelectorAll('button[onclick^="deleteLog"]');
-                newDeleteButtons.forEach(button => button.disabled = false);
-            }
-        }
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPurchaseDate();
+            loadHistory();
+        });
     </script>
 </body>
 </html>
