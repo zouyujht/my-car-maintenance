@@ -1,234 +1,57 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的汽车保养</title>
+    <title>Login</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        h1, h2 {
-            color: #0056b3;
-        }
-        form div {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input[type="date"],
-        input[type="number"],
-        input[type="text"],
-        select {
-            width: calc(100% - 22px);
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .delete-button {
-            background-color: #dc3545;
-            margin-left: 10px;
-        }
-        .delete-button:hover {
-            background-color: #c82333;
-        }
-        #purchaseDateDisplay {
-            font-weight: bold;
-            color: #28a745;
-        }
-        #historyTable {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        #historyTable th,
-        #historyTable td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        #historyTable th {
-            background-color: #f2f2f2;
-        }
-        .debug-info {
-            background-color: #e9ecef;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
-            white-space: pre-wrap;
-            font-family: monospace;
-            font-size: 0.9em;
-        }
-        .hidden {
-            display: none;
-        }
-        #password-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            font-family: sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            height: 100vh;
+            background-color: #f0f2f5;
         }
-        .password-prompt {
-            background: #fff;
-            padding: 30px;
+        .login-container {
+            background: white;
+            padding: 2rem;
             border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             text-align: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-        .password-prompt input {
-            margin-bottom: 15px;
+        input[type="password"] {
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
-        .password-prompt button {
-            width: 100%;
-        }
-        .password-prompt .error {
-            color: red;
-            margin-top: 10px;
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div id="password-overlay">
-        <div class="password-prompt">
-            <h2>请输入密码</h2>
-            <input type="password" id="password-input" placeholder="密码">
-            <button id="password-submit">进入</button>
-            <p id="password-error" class="error hidden"></p>
-        </div>
-    </div>
-
-    <div class="container hidden" id="main-content">
-        <h1>我的汽车保养记录</h1>
-
-        <section>
-            <h2>购车日期</h2>
-            <div id="purchaseDateSection">
-                <label for="purchaseDate">购车日期:</label>
-                <input type="date" id="purchaseDate">
-                <button id="savePurchaseDate">保存购车日期</button>
-                <button id="deletePurchaseDate" class="delete-button hidden">删除购车日期</button>
-            </div>
-            <p>当前购车日期: <span id="purchaseDateDisplay">未设置</span></p>
-        </section>
-
-        <section>
-            <h2>记录保养</h2>
-            <form id="maintenanceForm">
-                <div>
-                    <label for="maintenanceDate">保养日期:</label>
-                    <input type="date" id="maintenanceDate" required>
-                </div>
-                <div>
-                    <label for="itemName">保养项目:</label>
-                    <select id="itemName" required>
-                        <option value="">请选择项目</option>
-                        <option value="机油">机油</option>
-                        <option value="空气滤芯">空气滤芯</option>
-                        <option value="火花塞">火花塞</option>
-                        <option value="冷却液">冷却液</option>
-                        <option value="制动液">制动液</option>
-                        <option value="活性炭罐过滤器">活性炭罐过滤器</option>
-                        <option value="传动皮带">传动皮带</option>
-                        <option value="节流阀">节流阀</option>
-                        <option value="四轮对换">四轮对换</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="mileage">当前里程 (km):</label>
-                    <input type="number" id="mileage" required>
-                </div>
-                <button type="submit">添加保养记录</button>
-            </form>
-        </section>
-
-        <section>
-            <h2>保养历史</h2>
-            <table id="historyTable">
-                <thead>
-                    <tr>
-                        <th>日期</th>
-                        <th>项目</th>
-                        <th>里程 (km)</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTableBody">
-                    <!-- History records will be loaded here -->
-                </tbody>
-            </table>
-        </section>
-
-        <section>
-            <h2>保养建议</h2>
-            <button id="getSuggestions">获取保养建议</button>
-            <div id="suggestionsOutput"></div>
-            <h3>调试信息</h3>
-            <div id="debugInfoOutput" class="debug-info"></div>
-        </section>
+    <div class="login-container">
+        <h2>Enter Password</h2>
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="checkPassword()">Login</button>
     </div>
 
     <script>
-        const PASSWORD = "720720";
-        const passwordInput = document.getElementById('password-input');
-        const passwordSubmit = document.getElementById('password-submit');
-        const passwordError = document.getElementById('password-error');
-        const passwordOverlay = document.getElementById('password-overlay');
-        const mainContent = document.getElementById('main-content');
-
-        passwordSubmit.addEventListener('click', () => {
-            if (passwordInput.value === PASSWORD) {
-                passwordOverlay.style.display = 'none'; // 隐藏密码覆盖层
-                mainContent.classList.remove('hidden');
+        function checkPassword() {
+            const password = document.getElementById('password').value;
+            if (password === '720720') {
+                window.location.href = 'main.html';
             } else {
-                passwordError.textContent = "密码错误，请重试。";
-                passwordError.classList.remove('hidden');
+                alert('Incorrect password!');
             }
-        });
-
-        passwordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                passwordSubmit.click();
-            }
-        });
-
-        // Initial load
-        document.addEventListener('DOMContentLoaded', () => {
-            loadPurchaseDate();
-            loadHistory();
-        });
+        }
     </script>
 </body>
 </html>
