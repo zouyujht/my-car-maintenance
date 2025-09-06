@@ -26,19 +26,19 @@ export async function onRequestPost(context) {
         const { current_mileage } = await context.request.json();
         const db = context.env.DB;
 
-        // 1. 获取购车日期
+        // 1. Get purchase date
         const carInfo = await db.prepare("SELECT purchase_date FROM car_info LIMIT 1").first();
         if (!carInfo) {
             return new Response(JSON.stringify({ error: "请先在“保养日志”页面填入并提交一次购车日期。" }), { status: 400 });
         }
         const purchaseDate = parseDate(carInfo.purchase_date);
 
-        // 2. 获取所有历史保养记录
-        const { results: logs } = await db.prepare("SELECT * FROM maintenance_logs ORDER BY maintenance_date DESC").all();
+        // 2. Get all historical maintenance records
+        const { results: allLogs } = await db.prepare("SELECT * FROM maintenance_logs ORDER BY maintenance_date DESC, mileage DESC").all();
 
         const suggestions = [];
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize to midnight for date-only comparison
+        today.setHours(0, 0, 0, 0);
 
         const debugInfo = {
             queryDate: today.toISOString().split('T')[0],
@@ -46,60 +46,70 @@ export async function onRequestPost(context) {
             mileageBased: []
         };
 
-        // 3. 遍历所有规则，生成保养建议
+        // 3. Iterate through all rules to generate maintenance suggestions
         for (const rule of maintenanceRules) {
-            const lastLog = logs.find(log => log.item_name === rule.name);
+            // Find all logs for the current item
+            const itemLogs = allLogs.filter(log => log.item_name === rule.name);
 
+            // --- Time-based check ---
             if (rule.type === 'time') {
-                const baseDate = lastLog ? parseDate(lastLog.maintenance_date) : purchaseDate;
-                const lastMaintenanceText = lastLog ? (lastLog.maintenance_date || '').split('T')[0] : '购车日期';
-                
-                let nextMaintenanceDate;
-                let isOverdue = false;
+                // Collate all relevant dates: purchase date + all maintenance dates for this item
+                const relevantDates = [purchaseDate, ...itemLogs.map(log => parseDate(log.maintenance_date))];
+                // Find the most recent date
+                relevantDates.sort((a, b) => b.getTime() - a.getTime());
+                const lastActionDate = relevantDates[0];
 
-                // Calculate the first theoretical due date from the base date
-                let firstDueDate = new Date(baseDate.getTime());
+                // Calculate the due date based on the last action
+                const dueDate = new Date(lastActionDate);
                 if (rule.unit === 'year') {
-                    firstDueDate.setFullYear(firstDueDate.getFullYear() + rule.value);
+                    dueDate.setFullYear(dueDate.getFullYear() + rule.value);
                 } else if (rule.unit === 'month') {
-                    firstDueDate.setMonth(firstDueDate.getMonth() + rule.value);
+                    dueDate.setMonth(dueDate.getMonth() + rule.value);
                 }
 
-                // If the first due date is in the future, that's our next maintenance date.
-                if (firstDueDate > today) {
-                    nextMaintenanceDate = firstDueDate;
-                } else {
-                    isOverdue = true;
-                    // Otherwise, the item is overdue or due today.
-                    // Add a suggestion to the list.
-                    suggestions.push(`${rule.name} (上次保养: ${lastMaintenanceText}, 已到期)`);
-                    
-                    // And now we find the *next* due date that is actually in the future.
-                    let futureDate = new Date(baseDate.getTime());
-                    while (futureDate <= today) {
-                        if (rule.unit === 'year') {
-                            futureDate.setFullYear(futureDate.getFullYear() + rule.value);
-                        } else if (rule.unit === 'month') {
-                            futureDate.setMonth(futureDate.getMonth() + rule.value);
-                        }
-                    }
-                    nextMaintenanceDate = futureDate;
-                }
-
-                const diffTime = nextMaintenanceDate - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const timeDiff = dueDate.getTime() - today.getTime();
+                const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
                 
-                debugInfo.timeBased.push(`${rule.name}: 下次保养日期 ${nextMaintenanceDate.toISOString().split('T')[0]}, 还剩 ${isOverdue ? 0 : (diffDays > 0 ? diffDays : 0)} 天`);
+                const lastActionText = lastActionDate.getTime() === purchaseDate.getTime() 
+                    ? `购车日期 (${purchaseDate.toISOString().split('T')[0]})` 
+                    : `上次保养 (${lastActionDate.toISOString().split('T')[0]})`;
 
-            } else if (rule.type === 'mileage') {
-                const baseMileage = lastLog ? lastLog.mileage : 0;
-                const nextMaintenanceMileage = baseMileage + rule.value;
-                const diffMileage = nextMaintenanceMileage - current_mileage;
-
-                if (diffMileage <= 0) {
-                    suggestions.push(`${rule.name} (上次保养里程: ${baseMileage}km, 已到期)`);
+                if (daysRemaining <= 0) {
+                    suggestions.push(`${rule.name}: 已到期, 请立即保养. (基于: ${lastActionText})`);
                 }
-                debugInfo.mileageBased.push(`${rule.name}: 下次保养里程 ${nextMaintenanceMileage}km, 还差 ${diffMileage > 0 ? diffMileage : 0} km`);
+                
+                // Always add to debug info
+                debugInfo.timeBased.push(
+                    `${rule.name}: 下次保养日期 ${dueDate.toISOString().split('T')[0]}. ` +
+                    `基于 ${lastActionText}. ` +
+                    `还剩 ${daysRemaining > 0 ? daysRemaining : 0} 天.`
+                );
+            }
+
+            // --- Mileage-based check ---
+            if (rule.type === 'mileage') {
+                // Collate all relevant mileages: 0 (for purchase) + all maintenance mileages for this item
+                const relevantMileages = [0, ...itemLogs.map(log => log.mileage)];
+                // Find the highest mileage
+                const lastActionMileage = Math.max(...relevantMileages);
+
+                const dueMileage = lastActionMileage + rule.value;
+                const mileageRemaining = dueMileage - current_mileage;
+
+                const lastActionText = lastActionMileage === 0 
+                    ? '购车 (0km)' 
+                    : `上次保养 (${lastActionMileage}km)`;
+
+                if (mileageRemaining <= 0) {
+                    suggestions.push(`${rule.name}: 已到期, 请立即保养. (基于: ${lastActionText})`);
+                }
+
+                // Add to debug info, as per user request to have it for every item.
+                debugInfo.mileageBased.push(
+                    `${rule.name}: 下次保养里程 ${dueMileage}km. ` +
+                    `基于 ${lastActionText}. ` +
+                    `还差 ${mileageRemaining > 0 ? mileageRemaining : 0} km.`
+                );
             }
         }
 
@@ -108,6 +118,8 @@ export async function onRequestPost(context) {
         });
 
     } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+        // Log the full error for debugging on the server side
+        console.error("Query API Error:", error);
+        return new Response(JSON.stringify({ error: "查询时发生内部错误: " + error.message }), { status: 500 });
     }
 }
