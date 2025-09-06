@@ -16,6 +16,7 @@
             <label for="purchaseDate">购车日期:</label>
             <input type="date" id="purchaseDate" required>
             <button type="submit" id="savePurchaseDateBtn">保存购车日期</button>
+            <button type="button" id="deletePurchaseDateBtn" style="display: none; background-color: #dc3545;">删除购车日期</button>
         </form>
         <div id="purchaseDateMessage"></div>
     </div>
@@ -63,17 +64,30 @@
             const purchaseDateInput = document.getElementById('purchaseDate');
             const savePurchaseDateBtn = document.getElementById('savePurchaseDateBtn');
             const purchaseDateMessage = document.getElementById('purchaseDateMessage');
+            const deletePurchaseDateBtn = document.getElementById('deletePurchaseDateBtn');
 
-            // 检查并设置购车日期
-            const savedPurchaseDate = localStorage.getItem('carPurchaseDate');
-            if (savedPurchaseDate) {
-                purchaseDateInput.value = savedPurchaseDate;
-                purchaseDateInput.disabled = true;
-                savePurchaseDateBtn.disabled = true;
-                purchaseDateMessage.textContent = `购车日期已设置为: ${savedPurchaseDate}。如需修改，请联系管理员。`;
-                purchaseDateMessage.style.color = 'green';
+            function updatePurchaseDateUI() {
+                const savedPurchaseDate = localStorage.getItem('carPurchaseDate');
+                if (savedPurchaseDate) {
+                    purchaseDateInput.value = savedPurchaseDate;
+                    purchaseDateInput.disabled = true;
+                    savePurchaseDateBtn.disabled = true;
+                    deletePurchaseDateBtn.style.display = 'inline-block'; // Show delete button
+                    purchaseDateMessage.textContent = `购车日期已设置为: ${savedPurchaseDate}。`;
+                    purchaseDateMessage.style.color = 'green';
+                } else {
+                    purchaseDateInput.value = '';
+                    purchaseDateInput.disabled = false;
+                    savePurchaseDateBtn.disabled = false;
+                    deletePurchaseDateBtn.style.display = 'none'; // Hide delete button
+                    purchaseDateMessage.textContent = '请设置购车日期。';
+                    purchaseDateMessage.style.color = 'blue';
+                }
             }
             
+            // Initial UI setup
+            updatePurchaseDateUI();
+
             // 加载历史记录
             loadHistory();
 
@@ -97,10 +111,7 @@
 
                     if (response.ok) {
                         localStorage.setItem('carPurchaseDate', purchaseDate);
-                        purchaseDateInput.disabled = true;
-                        savePurchaseDateBtn.disabled = true;
-                        purchaseDateMessage.textContent = `购车日期已成功保存为: ${purchaseDate}`;
-                        purchaseDateMessage.style.color = 'green';
+                        updatePurchaseDateUI(); // Update UI
                         loadHistory(); // 重新加载以显示“车辆购买”记录
                     } else {
                         throw new Error(result.message || '保存失败');
@@ -108,6 +119,31 @@
                 } catch (error) {
                     purchaseDateMessage.textContent = '错误: ' + error.message;
                     purchaseDateMessage.style.color = 'red';
+                }
+            });
+
+            // 删除购车日期事件
+            deletePurchaseDateBtn.addEventListener('click', async () => {
+                if (!confirm('确定要删除购车日期吗？这将同时删除所有相关的保养记录！')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/car-info', {
+                        method: 'DELETE',
+                    });
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        localStorage.removeItem('carPurchaseDate');
+                        updatePurchaseDateUI(); // Update UI
+                        loadHistory(); // Refresh history
+                        alert('购车日期已成功删除。');
+                    } else {
+                        throw new Error(result.error || '删除失败');
+                    }
+                } catch (error) {
+                    alert('错误: ' + error.message);
                 }
             });
 

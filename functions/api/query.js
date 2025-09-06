@@ -1,14 +1,14 @@
 // 保养规则定义
 const maintenanceRules = [
-    { name: '冷却液', type: 'time', value: 3, unit: 'year' },
-    { name: '机油', type: 'time', value: 6, unit: 'month' },
-    { name: '制动液', type: 'time', value: 3, unit: 'year' },
-    { name: '活性炭罐过滤器', type: 'time', value: 3, unit: 'year' },
-    { name: '四轮对换', type: 'time', value: 2, unit: 'year' },
-    { name: '空气滤芯', type: 'time', value: 1, unit: 'year' },
-    { name: '传动皮带', type: 'time', value: 3, unit: 'year' },
-    { name: '火花塞', type: 'mileage', value: 30000 },
-    { name: '节流阀', type: 'mileage', value: 20000 },
+    { name: '机油', time: { value: 6, unit: 'month' }, mileage: { value: 5000 } },
+    { name: '空气滤芯', time: { value: 1, unit: 'year' }, mileage: { value: 10000 } },
+    { name: '火花塞', time: { value: 3, unit: 'year' }, mileage: { value: 30000 } },
+    { name: '冷却液', time: { value: 3, unit: 'year' }, mileage: { value: 40000 } },
+    { name: '制动液', time: { value: 3, unit: 'year' }, mileage: { value: 40000 } },
+    { name: '活性炭罐过滤器', time: { value: 3, unit: 'year' }, mileage: { value: 60000 } },
+    { name: '传动皮带', time: { value: 3, unit: 'year' }, mileage: { value: 60000 } },
+    { name: '节流阀', time: { value: 2, unit: 'year' }, mileage: { value: 20000 } },
+    { name: '四轮对换', time: { value: 1, unit: 'year' }, mileage: { value: 10000 } },
 ];
 
 // Helper to parse YYYY-MM-DD to avoid timezone issues
@@ -48,23 +48,22 @@ export async function onRequestPost(context) {
 
         // 3. Iterate through all rules to generate maintenance suggestions
         for (const rule of maintenanceRules) {
-            // Find all logs for the current item
             const itemLogs = allLogs.filter(log => log.item_name === rule.name);
 
+            let timeSuggestion = null;
+            let mileageSuggestion = null;
+
             // --- Time-based check ---
-            if (rule.type === 'time') {
-                // Collate all relevant dates: purchase date + all maintenance dates for this item
+            if (rule.time) {
                 const relevantDates = [purchaseDate, ...itemLogs.map(log => parseDate(log.maintenance_date))];
-                // Find the most recent date
                 relevantDates.sort((a, b) => b.getTime() - a.getTime());
                 const lastActionDate = relevantDates[0];
 
-                // Calculate the due date based on the last action
                 const dueDate = new Date(lastActionDate);
-                if (rule.unit === 'year') {
-                    dueDate.setFullYear(dueDate.getFullYear() + rule.value);
-                } else if (rule.unit === 'month') {
-                    dueDate.setMonth(dueDate.getMonth() + rule.value);
+                if (rule.time.unit === 'year') {
+                    dueDate.setFullYear(dueDate.getFullYear() + rule.time.value);
+                } else if (rule.time.unit === 'month') {
+                    dueDate.setMonth(dueDate.getMonth() + rule.time.value);
                 }
 
                 const timeDiff = dueDate.getTime() - today.getTime();
@@ -75,10 +74,9 @@ export async function onRequestPost(context) {
                     : `上次保养 (${lastActionDate.toISOString().split('T')[0]})`;
 
                 if (daysRemaining <= 0) {
-                    suggestions.push(`${rule.name}: 已到期, 请立即保养. (基于: ${lastActionText})`);
+                    timeSuggestion = `${rule.name}: 已到期 (时间), 请立即保养. (基于: ${lastActionText})`;
                 }
                 
-                // Always add to debug info
                 debugInfo.timeBased.push(
                     `${rule.name}: 下次保养日期 ${dueDate.toISOString().split('T')[0]}. ` +
                     `基于 ${lastActionText}. ` +
@@ -87,13 +85,11 @@ export async function onRequestPost(context) {
             }
 
             // --- Mileage-based check ---
-            if (rule.type === 'mileage') {
-                // Collate all relevant mileages: 0 (for purchase) + all maintenance mileages for this item
+            if (rule.mileage) {
                 const relevantMileages = [0, ...itemLogs.map(log => log.mileage)];
-                // Find the highest mileage
                 const lastActionMileage = Math.max(...relevantMileages);
 
-                const dueMileage = lastActionMileage + rule.value;
+                const dueMileage = lastActionMileage + rule.mileage.value;
                 const mileageRemaining = dueMileage - current_mileage;
 
                 const lastActionText = lastActionMileage === 0 
@@ -101,15 +97,21 @@ export async function onRequestPost(context) {
                     : `上次保养 (${lastActionMileage}km)`;
 
                 if (mileageRemaining <= 0) {
-                    suggestions.push(`${rule.name}: 已到期, 请立即保养. (基于: ${lastActionText})`);
+                    mileageSuggestion = `${rule.name}: 已到期 (里程), 请立即保养. (基于: ${lastActionText})`;
                 }
 
-                // Add to debug info, as per user request to have it for every item.
                 debugInfo.mileageBased.push(
                     `${rule.name}: 下次保养里程 ${dueMileage}km. ` +
                     `基于 ${lastActionText}. ` +
                     `还差 ${mileageRemaining > 0 ? mileageRemaining : 0} km.`
                 );
+            }
+
+            // Add suggestion if either is due. Prioritize mileage if both are due.
+            if (mileageSuggestion) {
+                suggestions.push(mileageSuggestion);
+            } else if (timeSuggestion) {
+                suggestions.push(timeSuggestion);
             }
         }
 
