@@ -44,22 +44,13 @@
     </div>
 
     <script>
-        async function checkPassword() {
+        function checkPassword() {
             const password = document.getElementById('password').value;
-            const hashedPassword = await sha256(password);
-            if (hashedPassword === '06c5cea6d23c5c2413f9d76d8347643ad353c027ce5aa353995e06c5d7a7a635') {
+            if (password === '720720') {
                 window.location.href = 'main.html';
             } else {
                 alert('Incorrect password!');
             }
-        }
-
-        async function sha256(message) {
-            const msgBuffer = new TextEncoder().encode(message);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            return hashHex;
         }
     </script>
 </body>
