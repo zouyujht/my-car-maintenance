@@ -43,10 +43,14 @@
         <button onclick="checkPassword()">Login</button>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script>
-        function checkPassword() {
+        async function checkPassword() {
             const password = document.getElementById('password').value;
-            if (password === '720720') {
+            const hash = CryptoJS.SHA256(password).toString();
+            const correctHash = '0a9c5231c23e3c99a7992711574854b8555b51593a332a5b4384c7d3404a3a3a';
+
+            if (hash === correctHash) {
                 window.location.href = 'main.html';
             } else {
                 alert('Incorrect password!');
