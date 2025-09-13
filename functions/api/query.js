@@ -1,14 +1,20 @@
 // 保养规则定义
 const maintenanceRules = [
-    { name: '机油', time: { value: 6, unit: 'month' }, mileage: { value: 5000 } },
+    { name: '机油', time: { value: 6, unit: 'month' }, mileage: { value: 7500 } },
     { name: '空气滤芯', time: { value: 1, unit: 'year' }, mileage: { value: 10000 } },
-    { name: '火花塞', time: { value: 3, unit: 'year' }, mileage: { value: 30000 } },
+    { name: '火花塞', time: { value: 3, unit: 'year' }, mileage: { value: 40000 } },
     { name: '冷却液', time: { value: 3, unit: 'year' }, mileage: { value: 40000 } },
     { name: '制动液', time: { value: 3, unit: 'year' }, mileage: { value: 40000 } },
     { name: '活性炭罐过滤器', time: { value: 3, unit: 'year' }, mileage: { value: 60000 } },
     { name: '传动皮带', time: { value: 3, unit: 'year' }, mileage: { value: 60000 } },
     { name: '节流阀', time: { value: 2, unit: 'year' }, mileage: { value: 20000 } },
     { name: '四轮对换', time: { value: 1, unit: 'year' }, mileage: { value: 10000 } },
+    { name: '空调滤芯', time: { value: 1, unit: 'year' }, mileage: { value: 10000 } },
+    { name: '变速箱油与滤芯', time: { value: 5, unit: 'year' }, mileage: { value: 60000 } },
+    { name: '燃油滤清器', time: { value: 6, unit: 'year' }, mileage: { value: 60000 } },
+    { name: '四轮定位', time: { value: 3, unit: 'year' }, mileage: { value: 30000 } },
+    { name: '轮胎', time: { value: 8, unit: 'year' }, mileage: { value: 80000 } },
+    { name: '分动器、后主减速器', time: { value: 6, unit: 'year' }, mileage: { value: 100000 } },
 ];
 
 // Helper to parse YYYY-MM-DD to avoid timezone issues
